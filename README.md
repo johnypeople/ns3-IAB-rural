@@ -36,7 +36,7 @@ This adaptation investigates:
 
 ---
 
-## 📚 Relevant papers on IAB ##
+## Relevant papers on IAB ##
 
 ### Original mmWave IAB Work
 
@@ -45,7 +45,7 @@ This adaptation investigates:
 
 ### Rural Sub-6 Adaptation (This Work)
 
-- Your paper: "Multi-hop IAB for Rural 5G: Sub-6 GHz Performance Analysis", SBrT 2026 _(in preparation)_
+- Under development: "Multi-hop IAB for Rural 5G: Sub-6 GHz Performance Analysis", SBrT 2026 _(in preparation)_
 
 ---
 
@@ -110,9 +110,9 @@ If you use this code in your research, please cite:
 
 ### Tested Platforms
 
-- ✅ **macOS 14+** (Apple Silicon M1/M2/M3)
-- ✅ **Ubuntu 20.04/22.04** (x86_64)
-- ⚠️ **Windows WSL2** (not fully tested)
+- **macOS 14+** (Apple Silicon M1/M2/M3)
+- **Ubuntu 20.04/22.04** (x86_64)
+- **Windows WSL2** (not fully tested)
 
 ### Known Issues
 
