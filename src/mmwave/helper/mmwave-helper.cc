@@ -324,7 +324,7 @@ MmWaveHelper::DoInitialize()
 	// TODO add mac & phy LTE stats
 	m_cnStats = 0;
 
-	NS_LOG_UNCOND("---- mmh UseIdealRrc " << m_useIdealRrc);
+	NS_LOG_DEBUG("---- mmh UseIdealRrc " << m_useIdealRrc);
 	Object::DoInitialize();
 }
 
@@ -696,7 +696,7 @@ MmWaveHelper::InstallSingleIabDevice(Ptr<Node> n)
 	accessUlPhy->SetAccessSpectrumPhy();
 
 	Ptr<MmWaveEnbPhy> accessPhy = CreateObject<MmWaveEnbPhy> (accessDlPhy, accessUlPhy);
-	NS_LOG_UNCOND("eNB " << cellId << " MmWaveSpectrumPhy " << accessDlPhy);
+	NS_LOG_DEBUG("eNB " << cellId << " MmWaveSpectrumPhy " << accessDlPhy);
 
 	Ptr<MmWaveHarqPhy> accessHarq = Create<MmWaveHarqPhy> (m_phyMacCommon->GetNumHarqProcess ());
 	accessDlPhy->SetHarqPhyModule (accessHarq);
@@ -1511,7 +1511,7 @@ MmWaveHelper::InstallSingleEnbDevice (Ptr<Node> n)
 	Ptr<MmWaveSpectrumPhy> dlPhy = CreateObject<MmWaveSpectrumPhy> ();
 
 	Ptr<MmWaveEnbPhy> phy = CreateObject<MmWaveEnbPhy> (dlPhy, ulPhy);
-	NS_LOG_UNCOND("eNB " << cellId << " MmWaveSpectrumPhy " << dlPhy);
+	NS_LOG_DEBUG("eNB " << cellId << " MmWaveSpectrumPhy " << dlPhy);
 
 	Ptr<MmWaveHarqPhy> harq = Create<MmWaveHarqPhy> (m_phyMacCommon->GetNumHarqProcess ());
 	dlPhy->SetHarqPhyModule (harq);

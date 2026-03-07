@@ -275,12 +275,12 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 		if (m_channelConditions.compare("l")==0 )
 		{
 			condition.m_channelCondition = 'l';
-			NS_LOG_UNCOND (m_scenario << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
+			NS_LOG_DEBUG (m_scenario << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
 		}
 		else if (m_channelConditions.compare("n")==0)
 		{
 			condition.m_channelCondition = 'n';
-			NS_LOG_UNCOND (m_scenario << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
+			NS_LOG_DEBUG (m_scenario << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
 		}
 		else if (m_channelConditions.compare("a")==0)
 		{
@@ -558,7 +558,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 
 		if(distance2D < 10)
 		{
-			NS_LOG_UNCOND ("The 2D distance is smaller than 10 meters, the 3GPP UMi-StreetCanyon model may not be accurate");
+			NS_LOG_DEBUG ("The 2D distance is smaller than 10 meters, the 3GPP UMi-StreetCanyon model may not be accurate");
 		}
 
 		//default base station value is 10 m

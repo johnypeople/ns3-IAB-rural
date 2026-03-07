@@ -264,7 +264,7 @@ MmWave3gppChannel::SetBeamformingVector (Ptr<NetDevice> ueDevice, Ptr<NetDevice>
 	bool pairFound = false;
 	if(UeDev != 0 && EnbDev != 0) // classic link
 	{
-		NS_LOG_UNCOND("SetBeamformingVector between UE " << ueDevice << " and enbDevice " << enbDevice);
+		NS_LOG_DEBUG("SetBeamformingVector between UE " << ueDevice << " and enbDevice " << enbDevice);
 		Ptr<AntennaArrayModel> ueAntennaArray = DynamicCast<AntennaArrayModel> (
 				UeDev->GetPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 		Ptr<AntennaArrayModel> enbAntennaArray = DynamicCast<AntennaArrayModel> (
@@ -280,7 +280,7 @@ MmWave3gppChannel::SetBeamformingVector (Ptr<NetDevice> ueDevice, Ptr<NetDevice>
 		Ptr<MmWaveIabNetDevice> iabDev = DynamicCast<MmWaveIabNetDevice>(enbDevice);
 		if(iabDev != 0) // access link
 		{
-			NS_LOG_UNCOND("SetBeamformingVector between UE " << ueDevice << " and IAB device " << iabDev);
+			NS_LOG_DEBUG("SetBeamformingVector between UE " << ueDevice << " and IAB device " << iabDev);
 			Ptr<AntennaArrayModel> ueAntennaArray = DynamicCast<AntennaArrayModel> (
 					UeDev->GetPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 			Ptr<AntennaArrayModel> iabAntennaArray = DynamicCast<AntennaArrayModel> (
@@ -297,7 +297,7 @@ MmWave3gppChannel::SetBeamformingVector (Ptr<NetDevice> ueDevice, Ptr<NetDevice>
 		Ptr<MmWaveIabNetDevice> iabDev = DynamicCast<MmWaveIabNetDevice>(ueDevice);
 		if(iabDev != 0) // access link
 		{
-			NS_LOG_UNCOND("SetBeamformingVector between ENB " << enbDevice << " and IAB device " << iabDev);
+			NS_LOG_DEBUG("SetBeamformingVector between ENB " << enbDevice << " and IAB device " << iabDev);
 			Ptr<AntennaArrayModel> enbAntennaArray = DynamicCast<AntennaArrayModel> (
 					EnbDev->GetPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 			Ptr<AntennaArrayModel> iabAntennaArray = DynamicCast<AntennaArrayModel> (
@@ -313,7 +313,7 @@ MmWave3gppChannel::SetBeamformingVector (Ptr<NetDevice> ueDevice, Ptr<NetDevice>
 			Ptr<McUeNetDevice> McUeDev = DynamicCast<McUeNetDevice> (ueDevice);
 			if(McUeDev != 0)
 			{
-				NS_LOG_UNCOND("SetBeamformingVector between MC UE " << ueDevice << " and enbDevice " << enbDevice);
+				NS_LOG_DEBUG("SetBeamformingVector between MC UE " << ueDevice << " and enbDevice " << enbDevice);
 				Ptr<AntennaArrayModel> ueAntennaArray = DynamicCast<AntennaArrayModel> (
 						McUeDev->GetMmWavePhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 				Ptr<AntennaArrayModel> enbAntennaArray = DynamicCast<AntennaArrayModel> (
@@ -335,7 +335,7 @@ MmWave3gppChannel::SetBeamformingVector (Ptr<NetDevice> ueDevice, Ptr<NetDevice>
 
 		if(UeDev != 0 && iabDev != 0)
 		{
-			NS_LOG_UNCOND("SetBeamformingVector between MC UE " << ueDevice << " and IAB device " << enbDevice);
+			NS_LOG_DEBUG("SetBeamformingVector between MC UE " << ueDevice << " and IAB device " << enbDevice);
 			Ptr<AntennaArrayModel> ueAntennaArray = DynamicCast<AntennaArrayModel> (
 					McUeDev->GetMmWavePhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 			Ptr<AntennaArrayModel> enbAntennaArray = DynamicCast<AntennaArrayModel> (
@@ -348,7 +348,7 @@ MmWave3gppChannel::SetBeamformingVector (Ptr<NetDevice> ueDevice, Ptr<NetDevice>
 		}
 		else if(iabDev != 0 && iabDevBh != 0)
 		{
-			NS_LOG_UNCOND("SetBeamformingVector between IAB " << ueDevice << " and IAB device " << enbDevice);
+			NS_LOG_DEBUG("SetBeamformingVector between IAB " << ueDevice << " and IAB device " << enbDevice);
 			Ptr<AntennaArrayModel> ueAntennaArray = DynamicCast<AntennaArrayModel> (
 					iabDevBh->GetBackhaulPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 			Ptr<AntennaArrayModel> enbAntennaArray = DynamicCast<AntennaArrayModel> (

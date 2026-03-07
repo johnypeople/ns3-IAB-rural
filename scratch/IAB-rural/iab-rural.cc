@@ -38,6 +38,7 @@
 #include "ns3/point-to-point-helper.h"
 #include "ns3/config-store.h"
 #include "ns3/mmwave-point-to-point-epc-helper.h"
+#include "ns3/flow-monitor-module.h"
 //#include "ns3/gtk-config-store.h"
 
 using namespace ns3;
@@ -164,27 +165,18 @@ PrintGnuplottableEnbListToFile (std::string filename)
 int
 main (int argc, char *argv[])
 {
-  LogComponentEnableAll (LOG_PREFIX_TIME);
-  LogComponentEnableAll (LOG_PREFIX_FUNC);
-  LogComponentEnableAll (LOG_PREFIX_NODE);
-  // LogComponentEnable("EpcEnbApplication", LOG_LEVEL_LOGIC);
-  LogComponentEnable("EpcIabApplication", LOG_LEVEL_LOGIC);
-  // LogComponentEnable("EpcSgwPgwApplication", LOG_LEVEL_LOGIC);
-  // LogComponentEnable("EpcMmeApplication", LOG_LEVEL_LOGIC);
-  // LogComponentEnable("EpcUeNas", LOG_LEVEL_LOGIC);
-
-  LogComponentEnable("LteEnbRrc", LOG_LEVEL_INFO);
-  LogComponentEnable("LteUeRrc", LOG_LEVEL_INFO);
-  LogComponentEnable("MmWaveHelper", LOG_LEVEL_LOGIC);
-  LogComponentEnable("MmWavePointToPointEpcHelper", LOG_LEVEL_LOGIC);
-  //LogComponentEnable("EpcS1ap", LOG_LEVEL_LOGIC);
-  // LogComponentEnable("EpcTftClassifier", LOG_LEVEL_LOGIC);
-  // LogComponentEnable("EpcGtpuHeader", LOG_LEVEL_INFO);
-  // LogComponentEnable("UdpEchoClientApplication", LOG_LEVEL_INFO);
-  // LogComponentEnable("UdpEchoServerApplication", LOG_LEVEL_INFO);
-  LogComponentEnable("UdpClient", LOG_LEVEL_INFO);
-  LogComponentEnable("UdpServer", LOG_LEVEL_INFO);
-  LogComponentEnable("MmWaveIabNetDevice", LOG_LEVEL_INFO);
+  // Logging minimo -- descomente conforme necessidade de debug
+  // LogComponentEnableAll (LOG_PREFIX_TIME);
+  // LogComponentEnableAll (LOG_PREFIX_FUNC);
+  // LogComponentEnableAll (LOG_PREFIX_NODE);
+  // LogComponentEnable("EpcIabApplication", LOG_LEVEL_LOGIC);
+  // LogComponentEnable("LteEnbRrc", LOG_LEVEL_INFO);
+  // LogComponentEnable("LteUeRrc", LOG_LEVEL_INFO);
+  // LogComponentEnable("MmWaveHelper", LOG_LEVEL_LOGIC);
+  // LogComponentEnable("MmWavePointToPointEpcHelper", LOG_LEVEL_LOGIC);
+  // LogComponentEnable("UdpClient", LOG_LEVEL_INFO);
+  // LogComponentEnable("UdpServer", LOG_LEVEL_INFO);
+  // LogComponentEnable("MmWaveIabNetDevice", LOG_LEVEL_INFO);
 
   
   CommandLine cmd;
@@ -200,18 +192,7 @@ main (int argc, char *argv[])
   cmd.AddValue("intPck", "interPacketInterval [us]", interPacketInterval);
   cmd.Parse(argc, argv);
 
-  //   if(rlcAm)
-  // {
-    LogComponentEnable("LteRlcAm", LOG_LEVEL_LOGIC); 
-  // }
-  // else
-  // {
-  // LogComponentEnable("MmWaveFlexTtiMacScheduler", LOG_LEVEL_DEBUG);
-  // // LogComponentEnable("MmWaveSpectrumPhy", LOG_LEVEL_INFO);
-  // LogComponentEnable("MmWaveEnbPhy", LOG_LEVEL_DEBUG);
-  // LogComponentEnable("MmWaveUeMac", LOG_LEVEL_DEBUG);
-  // LogComponentEnable("MmWaveEnbMac", LOG_LEVEL_DEBUG);
-  // }
+  // LogComponentEnable("LteRlcAm", LOG_LEVEL_LOGIC);
 
   Config::SetDefault("ns3::MmWavePhyMacCommon::UlSchedDelay", UintegerValue(1));
   Config::SetDefault ("ns3::LteRlcAm::MaxTxBufferSize", UintegerValue (rlcBufSize * 1024 * 1024));
@@ -328,13 +309,12 @@ main (int argc, char *argv[])
   Vector posIab4 = Vector(xIab2, yIab2, gnbHeight);
   Vector posWired = Vector(xWired, yWired, gnbHeight);
 
-  NS_LOG_UNCOND("wired " << posWired << 
-                " iab1 " << posIab1 <<
-                " iab2 " << posIab2 <<
-                " iab3 " << posIab3 << 
-                " iab4 " << posIab4 << 
-                " totalArea " << totalArea
-                );
+  NS_LOG_INFO("wired " << posWired <<
+              " iab1 " << posIab1 <<
+              " iab2 " << posIab2 <<
+              " iab3 " << posIab3 <<
+              " iab4 " << posIab4 <<
+              " totalArea " << totalArea);
 
   NodeContainer ueNodes;
   NodeContainer enbNodes;
@@ -418,7 +398,7 @@ main (int argc, char *argv[])
     }
 
   NetDeviceContainer possibleBaseStations(enbmmWaveDevs, iabmmWaveDevs);
-  NS_LOG_UNCOND("number of IAB devs " << iabmmWaveDevs.GetN() << " num of possibleBaseStations " 
+  NS_LOG_INFO("number of IAB devs " << iabmmWaveDevs.GetN() << " num of possibleBaseStations "
     << possibleBaseStations.GetN());
 
   if(numRelays > 0)
@@ -452,10 +432,98 @@ main (int argc, char *argv[])
   clientApps.Stop (Seconds (1.2));
   clientApps.Start (Seconds (0.5));
 
+  NS_LOG_UNCOND ("[1/4] Aplicacoes configuradas. Habilitando traces...");
   mmwaveHelper->EnableTraces ();
 
-  Simulator::Stop(Seconds(1.2));
-  Simulator::Run();
+  NS_LOG_UNCOND ("[2/4] Traces habilitados. Escrevendo mapa de celulas...");
+  // --- Mapeamento Cell ID -> Hop (para pos-processamento) ---
+  {
+    std::ofstream cellMap ("cell-hop-map.txt");
+    cellMap << "NodeType\tNodeId\tCellId\tHop\tX\tY\tZ\n";
+    for (uint32_t i = 0; i < enbmmWaveDevs.GetN (); i++)
+      {
+        Ptr<MmWaveEnbNetDevice> dev = DynamicCast<MmWaveEnbNetDevice> (enbmmWaveDevs.Get (i));
+        if (dev)
+          {
+            Vector pos = enbNodes.Get (i)->GetObject<MobilityModel> ()->GetPosition ();
+            cellMap << "gNB\t" << enbNodes.Get (i)->GetId () << "\t"
+                    << dev->GetCellId () << "\t0\t"
+                    << pos.x << "\t" << pos.y << "\t" << pos.z << "\n";
+          }
+      }
+    for (uint32_t i = 0; i < iabmmWaveDevs.GetN (); i++)
+      {
+        Ptr<MmWaveIabNetDevice> dev = DynamicCast<MmWaveIabNetDevice> (iabmmWaveDevs.Get (i));
+        if (dev)
+          {
+            Vector pos = iabNodes.Get (i)->GetObject<MobilityModel> ()->GetPosition ();
+            cellMap << "IAB\t" << iabNodes.Get (i)->GetId () << "\t"
+                    << dev->GetCellId () << "\t1\t"
+                    << pos.x << "\t" << pos.y << "\t" << pos.z << "\n";
+          }
+      }
+    cellMap.close ();
+    NS_LOG_UNCOND ("Cell-hop map written to cell-hop-map.txt");
+  }
+
+  NS_LOG_UNCOND ("[3/4] Iniciando simulacao...");
+  Simulator::Stop (Seconds (1.2));
+  Simulator::Run ();
+
+  NS_LOG_UNCOND ("[4/4] Simulacao concluida. Calculando metricas...");
+
+  // --- Metricas de throughput e perda via UdpServer ---
+  double simDuration  = 1.2 - 0.5; // janela util (s)
+  double expectedPkts = simDuration / (interPacketInterval * 1e-6);
+  double totalTput    = 0.0;
+
+  std::ofstream flowFile ("flow-metrics.txt");
+  if (!flowFile.is_open ())
+    {
+      NS_LOG_UNCOND ("[ERRO] Nao foi possivel criar flow-metrics.txt");
+    }
+  else
+    {
+      flowFile << "UeIndex\tUeIP\tTxPkts\tRxPkts\tThroughput_Mbps\tLoss_pct\n";
+
+      for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
+        {
+          Ptr<UdpServer> srv = serverApps.Get (u)->GetObject<UdpServer> ();
+          if (!srv)
+            {
+              NS_LOG_UNCOND ("[WARN] UdpServer nao encontrado para UE " << u);
+              continue;
+            }
+          uint32_t rxPkts = srv->GetReceived ();
+          double tput     = rxPkts * 1400.0 * 8.0 / simDuration / 1e6;
+          double loss     = (expectedPkts > rxPkts) ? (expectedPkts - rxPkts) * 100.0 / expectedPkts : 0.0;
+
+          flowFile << u                        << "\t"
+                   << ueIpIface.GetAddress (u) << "\t"
+                   << (uint32_t) expectedPkts  << "\t"
+                   << rxPkts                   << "\t"
+                   << tput                     << "\t"
+                   << loss                     << "\n";
+          totalTput += tput;
+        }
+
+      flowFile << "\n# --- Resumo ---\n";
+      flowFile << "# Total UEs:           " << ueNodes.GetN ()             << "\n";
+      flowFile << "# Throughput total DL: " << totalTput                   << " Mbps\n";
+      flowFile << "# Throughput medio/UE: " << totalTput / ueNodes.GetN () << " Mbps\n";
+      flowFile.close ();
+
+      NS_LOG_UNCOND ("=== Resumo da Simulacao ===");
+      NS_LOG_UNCOND ("UEs                  : " << ueNodes.GetN ());
+      NS_LOG_UNCOND ("Throughput total DL  : " << totalTput                   << " Mbps");
+      NS_LOG_UNCOND ("Throughput medio/UE  : " << totalTput / ueNodes.GetN () << " Mbps");
+      NS_LOG_UNCOND ("--- Arquivos gerados ---");
+      NS_LOG_UNCOND ("flow-metrics.txt     : throughput e perda por UE");
+      NS_LOG_UNCOND ("RxPacketTrace.txt    : SINR e TBLER por celula (PHY)");
+      NS_LOG_UNCOND ("DlRlcStats.txt       : delay e bytes na RLC");
+      NS_LOG_UNCOND ("DlPdcpStats.txt      : delay e bytes na PDCP");
+      NS_LOG_UNCOND ("cell-hop-map.txt     : mapeamento CellId -> Hop");
+    }
 
   /*GtkConfigStore config;
   config.ConfigureAttributes();*/
