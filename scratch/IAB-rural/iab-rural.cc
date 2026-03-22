@@ -185,9 +185,11 @@ main (int argc, char *argv[])
   uint32_t numRelays = 1;
   uint32_t rlcBufSize = 10;
   uint32_t interPacketInterval = 200;
+  uint32_t numUes = 20;
   cmd.AddValue("run", "run for RNG (for generating different deterministic sequences for different drops)", run);
   cmd.AddValue("am", "RLC AM if true", rlcAm);
   cmd.AddValue("numRelay", "Number of relays", numRelays);
+  cmd.AddValue("numUes", "Number of UEs", numUes);
   cmd.AddValue("rlcBufSize", "RLC buffer size [MB]", rlcBufSize);
   cmd.AddValue("intPck", "interPacketInterval [us]", interPacketInterval);
   cmd.Parse(argc, argv);
@@ -206,8 +208,13 @@ main (int argc, char *argv[])
 
   Config::SetDefault ("ns3::MmWaveFlexTtiMacScheduler::CqiTimerThreshold", UintegerValue(100));
 
-  Config::SetDefault ("ns3::MmWave3gppPropagationLossModel::Scenario", StringValue("UMi-StreetCanyon"));
-
+  // ---- Cenario Rural (RMa, 3.5 GHz) ----
+  Config::SetDefault ("ns3::MmWave3gppPropagationLossModel::Scenario", StringValue("RMa"));
+  Config::SetDefault ("ns3::MmWavePhyMacCommon::CenterFreq", DoubleValue(3.5e9));
+  // Forcar LOS para todos os links: justificado em cenario rural aberto onde
+  // torres IAB sao posicionadas com visada direta. Evita NLoS com SINR~0
+  // que causaria TxOpportunity=0 no backhaul encadeado.
+  Config::SetDefault ("ns3::MmWave3gppPropagationLossModel::ChannelCondition", StringValue("l"));
 
 	RngSeedManager::SetSeed (1);
 	RngSeedManager::SetRun (run);
@@ -217,7 +224,7 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::MmWavePhyMacCommon::SymbolPeriod", DoubleValue(1000/240));
 
   Ptr<MmWaveHelper> mmwaveHelper = CreateObject<MmWaveHelper> ();
-  mmwaveHelper->SetAttribute ("PathlossModel", StringValue ("ns3::MmWave3gppBuildingsPropagationLossModel"));
+  mmwaveHelper->SetAttribute ("PathlossModel", StringValue ("ns3::MmWave3gppPropagationLossModel"));
   Ptr<MmWavePointToPointEpcHelper>  epcHelper = CreateObject<MmWavePointToPointEpcHelper> ();
   mmwaveHelper->SetEpcHelper (epcHelper);
   mmwaveHelper->Initialize();
@@ -253,68 +260,38 @@ main (int argc, char *argv[])
   Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting (remoteHost->GetObject<Ipv4> ());
   remoteHostStaticRouting->AddNetworkRouteTo (Ipv4Address ("7.0.0.0"), Ipv4Mask ("255.0.0.0"), 1);
 
-  // place buildings
-  int numBuildingsRow = 4;
-  int numBuildingsColumn = 4;
-  double streetWidth = 10; // m
-  double buildingWidthX = 50; // m
-  double buildingWidthY = 50; // m
-  double buildingHeight = 10; // m
-  std::vector< Ptr<Building> > buildingVector; // in case you need to access the buildings later
+  // ---- Topologia Rural ----
+  // Area: 5 km x 5 km, sem edificios
+  // Donor gNB: origem (0, 2500, 35 m)
+  // IABs: encadeados linearmente ao longo do eixo X, separados por 1 km
+  // UEs: distribuidos aleatoriamente em toda a area
 
-  for (int rowIndex = 0; rowIndex < numBuildingsRow; ++rowIndex)
+  double areaX = 5000.0;  // m
+  double areaY = 5000.0;  // m
+  double gnbHeight = 35.0;  // m (hBS: 10-150 m para RMa)
+  double iabHeight = 10.0;  // m — limite exato: hUT<=10 (backhaul) e hBS>=10 (acesso) em RMa
+  double ueHeightMin = 1.5; // m (hUT: 1-10 m para RMa)
+  double ueHeightMax = 2.0; // m
+
+  // Donor gNB no canto esquerdo, IABs ao longo do corredor central
+  double yCenter = areaY / 2.0;
+  double iabSpacing = areaX / (numRelays + 1); // distancia uniforme entre nos
+
+  Vector posWired = Vector(0.0, yCenter, gnbHeight);
+
+  // Posicoes dos IABs: cadeia linear a partir do donor
+  std::vector<Vector> iabPositions;
+  for (uint32_t i = 0; i < numRelays; ++i)
   {
-    double minYBuilding = rowIndex*(buildingWidthY + streetWidth);
-    for (int colIndex = 0; colIndex < numBuildingsColumn; ++colIndex)
-    {
-      double minXBuilding = colIndex*(buildingWidthX + streetWidth);
-      Ptr <Building> building;
-      building = Create<Building> ();
-      building->SetBoundaries (Box( minXBuilding, minXBuilding + buildingWidthX,
-                                    minYBuilding, minYBuilding + buildingWidthY,
-                                    0.0, buildingHeight));
-      building->SetNRoomsX(1);
-      building->SetNRoomsY(1);
-      building->SetNFloors(1);
-
-      buildingVector.push_back(building);
-      Box buildingBoxForLog = building->GetBoundaries();
-      NS_LOG_INFO("Created building between coordinates (" 
-        << buildingBoxForLog.xMin << ", " << buildingBoxForLog.yMin << "), ("
-        << buildingBoxForLog.xMax << ", " << buildingBoxForLog.yMin << "), ("
-        << buildingBoxForLog.xMin << ", " << buildingBoxForLog.yMax << "), ("
-        << buildingBoxForLog.xMax << ", " << buildingBoxForLog.yMax << ") "
-        << "with height " << buildingBoxForLog.zMax - buildingBoxForLog.zMin << " m");
-    }
+    double xIab = (i + 1) * iabSpacing;
+    iabPositions.push_back(Vector(xIab, yCenter, iabHeight));
   }
 
-
-  double xMax = numBuildingsRow*(buildingWidthX + streetWidth) - streetWidth;
-  double yMax = numBuildingsColumn*(buildingWidthY + streetWidth) - streetWidth;
-  double totalArea = xMax * yMax;
-
-  double gnbHeight = buildingHeight + 5;
-
-  double xWired = numBuildingsRow*(buildingWidthX+streetWidth)/2 - streetWidth/2;
-  double yWired = numBuildingsColumn*(buildingWidthY+streetWidth)/2 - streetWidth/2;
-
-  double xIab1 = numBuildingsRow*(buildingWidthX+streetWidth)/4 - streetWidth/2;
-  double xIab2 = 3*numBuildingsRow*(buildingWidthX+streetWidth)/4 - streetWidth/2;
-  double yIab1 = numBuildingsColumn*(buildingWidthY+streetWidth)/4 - streetWidth/2 ;
-  double yIab2 = 3*numBuildingsColumn*(buildingWidthY+streetWidth)/4 - streetWidth/2;
-
-  Vector posIab1 = Vector(xIab1, yIab1, gnbHeight);
-  Vector posIab2 = Vector(xIab1, yIab2, gnbHeight);
-  Vector posIab3 = Vector(xIab2, yIab1, gnbHeight);
-  Vector posIab4 = Vector(xIab2, yIab2, gnbHeight);
-  Vector posWired = Vector(xWired, yWired, gnbHeight);
-
-  NS_LOG_INFO("wired " << posWired <<
-              " iab1 " << posIab1 <<
-              " iab2 " << posIab2 <<
-              " iab3 " << posIab3 <<
-              " iab4 " << posIab4 <<
-              " totalArea " << totalArea);
+  NS_LOG_UNCOND("Donor gNB: " << posWired);
+  for (uint32_t i = 0; i < iabPositions.size(); ++i)
+    NS_LOG_UNCOND("IAB[" << i << "]: " << iabPositions[i]);
+  NS_LOG_UNCOND("Area: " << areaX << " x " << areaY << " m  ("
+                << areaX/1000 << " x " << areaY/1000 << " km)");
 
   NodeContainer ueNodes;
   NodeContainer enbNodes;
@@ -322,7 +299,7 @@ main (int argc, char *argv[])
  
   enbNodes.Create(1);
   iabNodes.Create(numRelays);
-  ueNodes.Create(40);
+  ueNodes.Create(numUes);
 
   // Install Mobility Model
   Ptr<ListPositionAllocator> enbPositionAlloc = CreateObject<ListPositionAllocator> ();
@@ -333,43 +310,33 @@ main (int argc, char *argv[])
   enbmobility.Install (enbNodes);
 
   if(numRelays > 0)
-  { 
+  {
     Ptr<ListPositionAllocator> iabPositionAlloc = CreateObject<ListPositionAllocator> ();
-    iabPositionAlloc->Add (posIab1);
-    iabPositionAlloc->Add (posIab2);
-    iabPositionAlloc->Add (posIab3);
-    iabPositionAlloc->Add (posIab4);
+    for (uint32_t i = 0; i < numRelays; ++i)
+      iabPositionAlloc->Add (iabPositions[i]);
     MobilityHelper iabmobility;
     iabmobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
     iabmobility.SetPositionAllocator (iabPositionAlloc);
     iabmobility.Install (iabNodes);
   }
 
+  // UEs distribuidos aleatoriamente em toda a area rural
   MobilityHelper uemobility;
-  Ptr<OutdoorPositionAllocator> uePosAlloc = CreateObject<OutdoorPositionAllocator>();
-  Ptr<UniformRandomVariable> xUe = CreateObject<UniformRandomVariable>();
-  xUe->SetAttribute("Min", DoubleValue(0));
-  xUe->SetAttribute("Max", DoubleValue(xMax));
-  uePosAlloc->SetX(xUe);
-  Ptr<UniformRandomVariable> yUe = CreateObject<UniformRandomVariable>();
-  yUe->SetAttribute("Min", DoubleValue(0));
-  yUe->SetAttribute("Max", DoubleValue(yMax));
-  uePosAlloc->SetY(yUe);
-  Ptr<UniformRandomVariable> zUe = CreateObject<UniformRandomVariable>();
-  zUe->SetAttribute("Min", DoubleValue(1.6));
-  zUe->SetAttribute("Max", DoubleValue(1.75));
-  uePosAlloc->SetZ(zUe);
+  Ptr<RandomRectanglePositionAllocator> uePosAlloc = CreateObject<RandomRectanglePositionAllocator>();
+  uePosAlloc->SetAttribute("X", StringValue("ns3::UniformRandomVariable[Min=0|Max=" + std::to_string(areaX) + "]"));
+  uePosAlloc->SetAttribute("Y", StringValue("ns3::UniformRandomVariable[Min=0|Max=" + std::to_string(areaY) + "]"));
   uemobility.SetPositionAllocator (uePosAlloc);
   uemobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   uemobility.Install (ueNodes);
-  
-  BuildingsHelper::Install (enbNodes);
-  if(numRelays > 0)
-  { 
-    BuildingsHelper::Install (iabNodes);
+
+  // Ajustar altura dos UEs (RandomRectanglePositionAllocator nao define Z)
+  for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
+  {
+    Ptr<MobilityModel> mob = ueNodes.Get(u)->GetObject<MobilityModel>();
+    Vector pos = mob->GetPosition();
+    pos.z = ueHeightMin + (ueHeightMax - ueHeightMin) * u / std::max(1u, ueNodes.GetN() - 1);
+    mob->SetPosition(pos);
   }
-  BuildingsHelper::Install (ueNodes);
-  BuildingsHelper::MakeMobilityModelConsistent ();
 
   // Install mmWave Devices to the nodes
   NetDeviceContainer enbmmWaveDevs = mmwaveHelper->InstallEnbDevice (enbNodes);
